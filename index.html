@@ -3,107 +3,93 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>高校数学グラフ学習システム Ver2</title>
+<title>高校数学グラフ学習システム Ver4</title>
 <style>
 body{font-family:sans-serif;margin:15px}
 canvas{border:1px solid #333;max-width:100%}
 .row{margin:6px 0}
-label{display:inline-block;width:30px}
 input[type=range]{width:220px}
 input[type=number]{width:80px}
-.panel{padding:10px;border:1px solid #ccc;margin:10px 0}
+.panel{border:1px solid #ccc;padding:10px;margin:10px 0}
 </style>
 </head>
 <body>
-<h2>高校数学グラフ学習システム Ver.2</h2>
+<h2>高校数学グラフ学習システム Ver.4（接線・微分対応）</h2>
 
 <select id="mode">
-<option value="linear">1次関数</option>
 <option value="quadratic">2次関数</option>
+<option value="cubic">3次関数</option>
 </select>
 
 <div id="controls" class="panel"></div>
 
-<div class="panel">
-<h3>式を直接入力</h3>
-<div id="formulaInputs"></div>
-<button onclick="syncFormula()">式を反映</button>
-</div>
+<label><input type="checkbox" id="showTangent" checked> 接線を表示</label>
 
 <h3 id="formula"></h3>
+<div id="info"></div>
+
 <canvas id="cv" width="900" height="600"></canvas>
 
 <script>
-const controls=document.getElementById("controls");
-const formulaInputs=document.getElementById("formulaInputs");
 const cv=document.getElementById("cv");
 const ctx=cv.getContext("2d");
+const controls=document.getElementById("controls");
 
-function createParam(name,min,max,val,step=0.1){
- return `<div class="row">
- <label>${name}</label>
- <input type="range" id="${name}" min="${min}" max="${max}" step="${step}" value="${val}">
- <input type="number" id="${name}_num" step="${step}" value="${val}">
- </div>`;
+let tangentX=1;
+
+function param(name,min,max,val,step=0.1){
+ return `<div>${name}
+ <input type="range" id="${name}" min="${min}" max="${max}" value="${val}" step="${step}">
+ <input type="number" id="${name}_n" value="${val}" step="${step}"></div>`;
 }
 
-function bindPair(id){
+function bind(id){
  const s=document.getElementById(id);
- const n=document.getElementById(id+"_num");
- s.oninput=()=>{n.value=s.value;draw();updateFormulaBoxes();};
- n.oninput=()=>{s.value=n.value;draw();updateFormulaBoxes();};
+ const n=document.getElementById(id+"_n");
+ s.oninput=()=>{n.value=s.value;draw();}
+ n.oninput=()=>{s.value=n.value;draw();}
 }
 
 function setup(){
- const m=document.getElementById("mode").value;
-
- if(m==="linear"){
-   controls.innerHTML=createParam("a",-10,10,1)+createParam("b",-10,10,0);
-   formulaInputs.innerHTML=`
-   a=<input id="fa" value="1">
-   b=<input id="fb" value="0">
-   <br>y=ax+b`;
- }
+ let m=mode.value;
 
  if(m==="quadratic"){
-   controls.innerHTML=createParam("a",-5,5,1)+createParam("b",-10,10,0)+createParam("c",-10,10,0);
-   formulaInputs.innerHTML=`
-   a=<input id="fa" value="1">
-   b=<input id="fb" value="0">
-   c=<input id="fc" value="0">
-   <br>y=ax²+bx+c`;
+  controls.innerHTML=param("a",-5,5,1)+param("b",-10,10,0)+param("c",-10,10,0);
  }
 
- document.querySelectorAll('input[type="range"]').forEach(x=>bindPair(x.id));
+ if(m==="cubic"){
+  controls.innerHTML=param("a",-2,2,1,0.1)+param("b",-5,5,0)+param("c",-10,10,0)+param("d",-10,10,0);
+ }
+
+ document.querySelectorAll('input[type="range"]').forEach(x=>bind(x.id));
  draw();
 }
 
-function updateFormulaBoxes(){
- if(document.getElementById("fa")) fa.value=a.value;
- if(document.getElementById("fb")) fb.value=b.value;
- if(document.getElementById("fc") && document.getElementById("c")) fc.value=c.value;
-}
-
-function syncFormula(){
- a.value=fa.value;
- a_num.value=fa.value;
- b.value=fb.value;
- b_num.value=fb.value;
-
- if(document.getElementById("c")){
-   c.value=fc.value;
-   c_num.value=fc.value;
+function f(x){
+ if(mode.value==="quadratic"){
+  return +a.value*x*x + +b.value*x + +c.value;
  }
- draw();
+ return +a.value*x*x*x + +b.value*x*x + +c.value*x + +d.value;
 }
 
-function drawAxes(){
+function df(x){
+ if(mode.value==="quadratic"){
+  return 2*(+a.value)*x + (+b.value);
+ }
+ return 3*(+a.value)*x*x + 2*(+b.value)*x + (+c.value);
+}
+
+function axes(){
  ctx.clearRect(0,0,900,600);
  const s=40,cx=450,cy=300;
 
- ctx.strokeStyle="#ddd";
- for(let i=0;i<900;i+=s){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,600);ctx.stroke();}
- for(let i=0;i<600;i+=s){ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(900,i);ctx.stroke();}
+ ctx.strokeStyle="#e0e0e0";
+ for(let i=0;i<900;i+=s){
+  ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,600);ctx.stroke();
+ }
+ for(let i=0;i<600;i+=s){
+  ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(900,i);ctx.stroke();
+ }
 
  ctx.strokeStyle="black";
  ctx.beginPath();ctx.moveTo(0,cy);ctx.lineTo(900,cy);ctx.stroke();
@@ -113,8 +99,7 @@ function drawAxes(){
 }
 
 function draw(){
- const {s,cx,cy}=drawAxes();
- const mode=document.getElementById("mode").value;
+ const {s,cx,cy}=axes();
 
  ctx.strokeStyle="red";
  ctx.lineWidth=2;
@@ -123,26 +108,62 @@ function draw(){
  let first=true;
 
  for(let x=-10;x<=10;x+=0.02){
-   let y=0;
+  let y=f(x);
 
-   if(mode==="linear"){
-      y=Number(a.value)*x+Number(b.value);
-      formula.textContent=`y=${a.value}x + ${b.value}`;
-   }
+  let px=cx+x*s;
+  let py=cy-y*s;
 
-   if(mode==="quadratic"){
-      y=Number(a.value)*x*x+Number(b.value)*x+Number(c.value);
-      formula.textContent=`y=${a.value}x² + ${b.value}x + ${c.value}`;
-   }
-
-   let px=cx+x*s;
-   let py=cy-y*s;
-
-   if(first){ctx.moveTo(px,py);first=false;}
-   else{ctx.lineTo(px,py);}
+  if(first){ctx.moveTo(px,py);first=false;}
+  else ctx.lineTo(px,py);
  }
  ctx.stroke();
+
+ let y0=f(tangentX);
+ let m=df(tangentX);
+
+ if(showTangent.checked){
+
+   ctx.strokeStyle="blue";
+   ctx.beginPath();
+
+   let first2=true;
+
+   for(let x=-10;x<=10;x+=0.05){
+      let y=m*(x-tangentX)+y0;
+
+      let px=cx+x*s;
+      let py=cy-y*s;
+
+      if(first2){ctx.moveTo(px,py);first2=false;}
+      else ctx.lineTo(px,py);
+   }
+   ctx.stroke();
+
+   ctx.fillStyle="blue";
+   ctx.beginPath();
+   ctx.arc(cx+tangentX*s,cy-y0*s,6,0,Math.PI*2);
+   ctx.fill();
+ }
+
+ if(mode.value==="quadratic"){
+   formula.textContent=`y=${a.value}x² + ${b.value}x + ${c.value}`;
+ }else{
+   formula.textContent=`y=${a.value}x³ + ${b.value}x² + ${c.value}x + ${d.value}`;
+ }
+
+ info.innerHTML=
+ `接点 x=${tangentX.toFixed(2)}<br>
+ 接点 (${tangentX.toFixed(2)}, ${y0.toFixed(2)})<br>
+ 微分係数（接線の傾き）=${m.toFixed(2)}<br>
+ 接線: y=${m.toFixed(2)}(x-${tangentX.toFixed(2)})+${y0.toFixed(2)}`;
 }
+
+cv.addEventListener("click",e=>{
+ const rect=cv.getBoundingClientRect();
+ const x=(e.clientX-rect.left-450)/40;
+ tangentX=x;
+ draw();
+});
 
 mode.onchange=setup;
 setup();
